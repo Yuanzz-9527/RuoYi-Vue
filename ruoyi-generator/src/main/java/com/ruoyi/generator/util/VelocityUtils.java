@@ -145,14 +145,26 @@ public class VelocityUtils
         templates.add("vm/js/api.js.vm");
         if (GenConstants.TPL_CRUD.equals(tplCategory))
         {
+            if ("element-plus".equals(tplWebType))
+            {
+                templates.add("vm/ts/api.ts.vm");
+            }
             templates.add(useWebType + "/index.vue.vm");
         }
         else if (GenConstants.TPL_TREE.equals(tplCategory))
         {
+            if ("element-plus".equals(tplWebType))
+            {
+                templates.add("vm/ts/api-tree.ts.vm");
+            }
             templates.add(useWebType + "/index-tree.vue.vm");
         }
         else if (GenConstants.TPL_SUB.equals(tplCategory))
         {
+            if ("element-plus".equals(tplWebType))
+            {
+                templates.add("vm/ts/api.ts.vm");
+            }
             templates.add(useWebType + "/index.vue.vm");
             templates.add("vm/java/sub-domain.java.vm");
         }

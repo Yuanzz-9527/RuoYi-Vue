@@ -1,0 +1,61 @@
+import request from '@/utils/http'
+
+export interface ${BusinessName} {
+  children?: ${BusinessName}[]
+  #foreach ($column in $columns)
+  #if($column.javaField == 'createBy' || $column.javaField == 'createTime' || $column.javaField == 'updateBy' || $column.javaField == 'updateTime' || $column.javaField == 'remark' )
+  #else
+  #if($column.javaType == "String")
+  $column.javaField: string
+  #elseif($column.javaType == "Integer" || $column.javaType == "int" || $column.javaType == "Long" || $column.javaType == "long" || $column.javaType == "Short" || $column.javaType == "short" || $column.javaType == "Byte" || $column.javaType == "byte" || $column.javaType == "Double" || $column.javaType == "double" || $column.javaType == "Float" || $column.javaType == "float" || $column.javaType == "BigDecimal")
+  $column.javaField: number
+  #elseif($column.javaType == "Boolean" || $column.javaType == "boolean")
+  $column.javaField: boolean
+  #elseif($column.javaType == "Date" || $column.javaType == "LocalDateTime" || $column.javaType == "LocalDate" || $column.javaType == "Timestamp")
+  $column.javaField: string
+  #else
+  $column.javaField: any
+  #end
+  #end
+  #end
+}
+
+export class ${BusinessName}Service {
+  // 查询${functionName}列表
+  static list${BusinessName}(params?: Record<string, unknown>) {
+    return request.get<Api.Common.DataResponse<${BusinessName}[]>>({
+      url: '/${moduleName}/${businessName}/list',
+      params
+    })
+  }
+
+  // 查询${functionName}详细
+  static getMenu(${pkColumn.javaField}: number) {
+    return request.get<Api.Common.DataResponse<${BusinessName}>>({
+      url: '/${moduleName}/${businessName}/' + ${pkColumn.javaField}
+    })
+  }
+
+  // 新增${functionName}
+  static addMenu(params: ${BusinessName}) {
+    return request.post({
+      url: '/${moduleName}/${businessName}',
+      params
+    })
+  }
+
+  // 修改${functionName}
+  static updateMenu(params: ${BusinessName}) {
+    return request.put({
+      url: '/${moduleName}/${businessName}',
+      params
+    })
+  }
+
+  // 删除${functionName}
+  static delMenu(${pkColumn.javaField}: number | string) {
+    return request.del({
+      url: '/${moduleName}/${businessName}/' + ${pkColumn.javaField}
+    })
+  }
+}
