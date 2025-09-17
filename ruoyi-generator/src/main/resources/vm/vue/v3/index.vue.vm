@@ -560,9 +560,9 @@
       if (valid) {
         try {
           if (isEdit.value) {
-            await updateRole(form)
+            await update${BusinessName}(form as ${BusinessName})
           } else {
-            await addRole(form)
+            await add${BusinessName}(form as ${BusinessName})
           }
           ElMessage.success(isEdit.value ? '编辑成功' : '新增成功')
           dialogVisible.value = false

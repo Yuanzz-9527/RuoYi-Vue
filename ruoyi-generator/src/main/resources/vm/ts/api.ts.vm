@@ -2,7 +2,7 @@ import request from '@/utils/http'
 
 export interface ${BusinessName} {
   #foreach ($column in $columns)
-  #if($column.javaField == 'createBy' || $column.javaField == 'createTime' || $column.javaField == 'updateBy' || $column.javaField == 'updateTime' || $column.javaField == 'remark' )
+  #if($column.javaField == 'createBy' || $column.javaField == 'createTime' || $column.javaField == 'updateBy' || $column.javaField == 'updateTime' )
   #else
   #if($column.javaType == "String")
   $column.javaField: string
