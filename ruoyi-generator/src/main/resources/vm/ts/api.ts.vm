@@ -29,14 +29,14 @@ export class ${BusinessName}Service {
   }
 
   // 查询${functionName}详细
-  static getMenu(${pkColumn.javaField}: number) {
+  static get${BusinessName}(${pkColumn.javaField}: number) {
     return request.get<Api.Common.DataResponse<${BusinessName}>>({
       url: '/${moduleName}/${businessName}/' + ${pkColumn.javaField}
     })
   }
 
   // 新增${functionName}
-  static addMenu(params: ${BusinessName}) {
+  static add${BusinessName}(params: ${BusinessName}) {
     return request.post({
       url: '/${moduleName}/${businessName}',
       params
@@ -44,7 +44,7 @@ export class ${BusinessName}Service {
   }
 
   // 修改${functionName}
-  static updateMenu(params: ${BusinessName}) {
+  static update${BusinessName}(params: ${BusinessName}) {
     return request.put({
       url: '/${moduleName}/${businessName}',
       params
@@ -52,7 +52,7 @@ export class ${BusinessName}Service {
   }
 
   // 删除${functionName}
-  static delMenu(${pkColumn.javaField}: number | string) {
+  static del${BusinessName}(${pkColumn.javaField}: number | string) {
     return request.del({
       url: '/${moduleName}/${businessName}/' + ${pkColumn.javaField}
     })
