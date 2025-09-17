@@ -112,6 +112,7 @@
         v-model="dialogVisible"
         width="500px"
         align-center
+        :close-on-click-modal="false"
       >
         <ElForm ref="formRef" :model="form" :rules="rules" label-width="85px">
           <ElRow>

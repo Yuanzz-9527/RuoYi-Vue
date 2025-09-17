@@ -32,6 +32,7 @@
         :columns="columns"
         :data="tableData"
         :stripe="false"
+        :default-expand-all="isExpanded"
       >
  #foreach($column in $columns)
          #set($javaField=$column.javaField)
@@ -73,7 +74,7 @@
       </ArtTable>
 
       <!-- 弹窗表单 -->
-      <ElDialog :title="dialogTitle" v-model="dialogVisible" width="700px" align-center>
+      <ElDialog :title="dialogTitle" v-model="dialogVisible" width="700px" align-center :close-on-click-modal="false">
         <ElForm ref="formRef" :model="form" :rules="rules" label-width="85px">
           <ElRow :gutter="20">
           #foreach($column in $columns)
@@ -551,7 +552,7 @@ const resetForm = () => {
   })
 }
 
-const isExpanded = ref(false)
+const isExpanded = ref(true)
 const tableRef = ref()
 // 展开/折叠
 const toggleExpand = () => {
