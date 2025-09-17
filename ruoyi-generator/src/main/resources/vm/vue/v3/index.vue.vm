@@ -534,8 +534,9 @@
     try {
       isEdit.value = type === 'edit'
       resetForm() // 重置表单
-      if (isEdit.value && row?.${pkColumn.javaField}) {
-        const { data } = await get${BusinessName}(row.${pkColumn.javaField})
+      const ${businessName}Id = row?.${businessName}Id ? row.${businessName}Id : (ids.value as unknown as number)
+      if (isEdit.value && ${businessName}Id) {
+        const { data } = await get${BusinessName}(${businessName}Id)
         Object.assign(form, {
           #foreach ($column in $columns)
           #if($column.javaField == 'createBy' || $column.javaField == 'createTime' || $column.javaField == 'updateBy' || $column.javaField == 'updateTime')
