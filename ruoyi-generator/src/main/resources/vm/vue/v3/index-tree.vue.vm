@@ -157,7 +157,7 @@
                 </ElSelect>
               </ElFormItem>
           </ElCol>
-          #elseif($column.htmlType == "select" && $dictType)
+          #elseif($column.htmlType == "select" && "" == $dictType)
           <ElCol :span="12">
               <ElFormItem label="${comment}" prop="${field}">
                 <ElSelect v-model="form.${field}" placeholder="请选择${comment}">
@@ -178,7 +178,7 @@
                 </ElCheckboxGroup>
               </ElFormItem>
           </ElCol>
-          #elseif($column.htmlType == "checkbox" && $dictType)
+          #elseif($column.htmlType == "checkbox" && "" == $dictType)
           <ElCol :span="12">
               <ElFormItem label="${comment}" prop="${field}">
                 <ElCheckboxGroup v-model="form.${field}">
@@ -202,7 +202,7 @@
                     </ElRadioGroup>
                   </ElFormItem>
                 </ElCol>
-          #elseif($column.htmlType == "radio" && $dictType)
+          #elseif($column.htmlType == "radio" && "" == $dictType)
                 <ElCol :span="12">
                   <ElFormItem label="${comment}" prop="${field}">
                     <ElRadioGroup v-model="form.${field}">
@@ -224,7 +224,7 @@
           #elseif($column.htmlType == "textarea")
                 <ElCol :span="24">
                   <ElFormItem label="${comment}" prop="${field}">
-                    <ElInput v-model="form.${field}" type="textarea" placeholder="请输入内容" />
+                    <ElInput v-model="form.${field}" :rows="3" type="textarea" placeholder="请输入内容" />
                   </ElFormItem>
                 </ElCol>
           #end
@@ -304,62 +304,62 @@ const handleReset = () => {
 const handleRefresh = () => handleSearch()
 
 // 搜索项配置
-const formItems: SearchFormItem[] = [
-  #foreach($column in $columns)
-  #if($column.query)
-  #set($dictType=$column.dictType)
-  #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
-  #set($parentheseIndex=$column.columnComment.indexOf("（"))
-  #if($parentheseIndex != -1)
-  #set($comment=$column.columnComment.substring(0, $parentheseIndex))
-  #else
-  #set($comment=$column.columnComment)
-  #end
-  #if($column.htmlType == "input")
-       {
-         label: '${comment}',
-         prop: '${column.javaField}',
-         type: 'input',
-         config: { clearable: true }
-       }#if($foreach.count != $columns.size()),#end
-  #elseif(($column.htmlType == "select" || $column.htmlType == "radio") && "" != $dictType)
-       {
-         label: '${comment}',
-         prop: '${column.javaField}',
-         type: 'select',
-         config: { clearable: true },
-         options: dict.${dictType}
-       }#if($foreach.count != $columns.size()),#end
-  #elseif(($column.htmlType == "select" || $column.htmlType == "radio") && $dictType)
-      {
-         label: '${comment}',
-         prop: '${column.javaField}',
-         type: 'select',
-         config: { clearable: true },
-         options: [label:'请选择字典生产',value:'']
-      }#if($foreach.count != $columns.size()),#end
-  #elseif($column.htmlType == "datetime" && $column.queryType != "BETWEEN")
-      {
-         label: '${comment}',
-         prop: '${column.javaField}',
-         type: 'date',
-         config: { clearable: true },
-      }#if($foreach.count != $columns.size()),#end
-  #elseif($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
-      {
-         label: '${comment}',
-         #if($betweenColumns.size() == 1)
-         prop: 'daterange',
-         #else
-         prop: 'daterange${AttrName}',
-         #end
-         type: 'daterange',
-         config: {type: 'daterange',startPlaceholder: '开始时间',endPlaceholder: '结束时间'}
-       }#if($foreach.count != $columns.size()),#end
-  #end
-  #end
-  #end
-]
+const formItems = computed<SearchFormItem[]>(() => [
+#foreach($column in $columns)
+#if($column.query)
+#set($dictType=$column.dictType)
+#set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+#set($parentheseIndex=$column.columnComment.indexOf("（"))
+#if($parentheseIndex != -1)
+#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+#else
+#set($comment=$column.columnComment)
+#end
+#if($column.htmlType == "input")
+     {
+       label: '${comment}',
+       prop: '${column.javaField}',
+       type: 'input',
+       config: { clearable: true }
+     }#if($foreach.count != $columns.size()),#end
+#elseif(($column.htmlType == "select" || $column.htmlType == "radio") && "" != $dictType)
+     {
+       label: '${comment}',
+       prop: '${column.javaField}',
+       type: 'select',
+       config: { clearable: true },
+       options: dict.${dictType}
+     }#if($foreach.count != $columns.size()),#end
+#elseif(($column.htmlType == "select" || $column.htmlType == "radio") && $dictType)
+    {
+       label: '${comment}',
+       prop: '${column.javaField}',
+       type: 'select',
+       config: { clearable: true },
+       options: [label:'请选择字典生产',value:'']
+    }#if($foreach.count != $columns.size()),#end
+#elseif($column.htmlType == "datetime" && $column.queryType != "BETWEEN")
+    {
+       label: '${comment}',
+       prop: '${column.javaField}',
+       type: 'date',
+       config: { clearable: true },
+    }#if($foreach.count != $columns.size()),#end
+#elseif($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
+    {
+       label: '${comment}',
+       #if($betweenColumns.size() == 1)
+       prop: 'daterange',
+       #else
+       prop: 'daterange${AttrName}',
+       #end
+       type: 'daterange',
+       config: {type: 'daterange',startPlaceholder: '开始时间',endPlaceholder: '结束时间'}
+     }#if($foreach.count != $columns.size()),#end
+#end
+#end
+#end
+])
 
 // 列表项配置
 const { columnChecks, columns } = useTableColumns(() => [
