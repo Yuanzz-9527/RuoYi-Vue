@@ -2,16 +2,17 @@
   <div class="${businessName}-page art-full-height">
     <!-- 搜索栏 -->
     <ArtSearchBar
-      v-model:filter="formFilters"
+      v-model="searchForm"
       :items="formItems"
-      @reset="handleResetSearch()"
+      @reset="resetSearchParams()"
       @search="handleSearch()"
     ></ArtSearchBar>
 
     <ElCard class="art-table-card" shadow="never">
       <!-- 表格头部 -->
-      <ArtTableHeader :showZebra="false" v-model:columns="columnChecks" @refresh="refreshAll">
+      <ArtTableHeader :showZebra="false" v-model:columns="columnChecks" @refresh="refreshData">
         <template #left>
+         <ElSpace wrap>
           <ElButton
             @click="showDialog('add')"
             type="primary"
@@ -31,7 +32,7 @@
             修改</ElButton
           >
           <ElButton
-            @click="deleteRole()"
+            @click="handleRemove()"
             type="danger"
             plain
             :disabled="multiple"
@@ -44,7 +45,7 @@
             :options="importConfig"
             title="Excel-导入${functionName}"
             v-auth="'${moduleName}:${businessName}:import'"
-            @import-success="searchData()"
+            @import-success="getData()"
           ></MdExcelImport>
           <ElButton
             @click="handleExport()"
@@ -54,18 +55,19 @@
             v-ripple
             >导出</ElButton
           >
+          </ElSpace>
         </template>
       </ArtTableHeader>
 
       <!-- 列表数据 -->
       <ArtTable
-        :loading="isLoading"
-        :data="tableData"
+        :loading="loading"
+        :data="data"
         :columns="columns"
-        :pagination="paginationState"
+        :pagination="pagination"
         @selection-change="handleSelectionChange"
-        @pagination:size-change="onPageSizeChange"
-        @pagination:current-change="onCurrentPageChange"
+        @pagination:size-change="handleSizeChange"
+        @pagination:current-change="handleCurrentChange"
       >
          #foreach($column in $columns)
          #set($javaField=$column.javaField)
@@ -78,7 +80,7 @@
          #if($column.pk)
          #elseif($column.list && $column.htmlType == "datetime")
          <template #${javaField}="{ value }">
-           <span>{{ parseTime(value, '{y}-{m}-{d}') }}</span>
+           <span>{{ parseTime(value, '{y}-{m}-{d} {h}:{i}:{s}') }}</span>
          </template>
          #elseif($column.list && $column.htmlType == "imageUpload")
          <template #${javaField}="{ value }">
@@ -271,18 +273,16 @@
 </template>
 
 <script setup lang="ts">
-  import { type ${BusinessName}, ${BusinessName}Service } from '@/api/${moduleName}/${businessName}'
-  import { useTable } from '@/composables/useTable'
+  import { type ${BusinessName}, ${BusinessName}SearchParams, ${BusinessName}Service } from '@/api/${moduleName}/${businessName}'
+  import { useTable, useAuth } from '@/hooks'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { downloadFile } from '@/utils/http'
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { ElButton } from 'element-plus'
-  import { useAuth } from '@/composables/useAuth'
   import { parseTime, addDateRange } from '@/utils'
-  import { SearchFormItem } from '@/types'
   #if(${dicts} != '')
-  import useDict from '@/composables/useDict'
+  import { useDict } from '@/hooks/core/useDict'
   import ArtDict from '@/components/core/forms/art-dict/index.vue'
   #end
 
@@ -297,36 +297,8 @@
   // 接口
   const { list${BusinessName}, add${BusinessName}, update${BusinessName}, get${BusinessName}, del${BusinessName} } = ${BusinessName}Service
 
-  // 定义表单搜索初始值
-  const initialSearchState = {
-    ## 先统计符合条件的字段数量
-    #set($betweenColumns = [])
-    #foreach ($column in $columns)
-        #if($column.query && $column.htmlType == "datetime" && $column.queryType == "BETWEEN")
-            #set($void = $betweenColumns.add($column))
-        #end
-    #end
-    ## 根据数量来生成
-    #if($betweenColumns.size() == 1)
-    daterange: [],
-    #else
-    #foreach ($column in $betweenColumns)
-    #set($AttrName = $column.javaField.substring(0,1).toUpperCase() + $column.javaField.substring(1))
-    daterange${AttrName}: [],
-    #end
-    #end
-    #foreach ($column in $columns)
-    #if($column.query)
-    #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
-    #else
-    $column.javaField: undefined#if($foreach.count != $columns.size()),#end
-    #end
-    #end
-    #end
-  }
-
   // 搜索项配置
-  const formItems = computed<SearchFormItem[]>(() => [
+  const formItems = computed(() => [
     #foreach($column in $columns)
     #if($column.query)
     #set($dictType=$column.dictType)
@@ -340,43 +312,41 @@
     #if($column.htmlType == "input")
          {
            label: '${comment}',
-           prop: '${column.javaField}',
+           key: '${column.javaField}',
            type: 'input',
-           config: { clearable: true }
+           props: { clearable: true, placeholder: '请输入${comment}' }
          }#if($foreach.count != $columns.size()),#end
     #elseif(($column.htmlType == "select" || $column.htmlType == "radio") && "" != $dictType)
          {
            label: '${comment}',
-           prop: '${column.javaField}',
+           key: '${column.javaField}',
            type: 'select',
-           config: { clearable: true },
-           options: dict.${dictType}
+           props: { clearable: true, placeholder: '请选择${comment}', options: dict.${dictType} }
          }#if($foreach.count != $columns.size()),#end
     #elseif(($column.htmlType == "select" || $column.htmlType == "radio") && $dictType)
         {
            label: '${comment}',
-           prop: '${column.javaField}',
+           key: '${column.javaField}',
            type: 'select',
-           config: { clearable: true },
-           options: [label:'请选择字典生产',value:'']
+           props: { clearable: true, placeholder: '请选择${comment}', options: [label:'请选择字典生产',value:''] }
         }#if($foreach.count != $columns.size()),#end
     #elseif($column.htmlType == "datetime" && $column.queryType != "BETWEEN")
         {
            label: '${comment}',
-           prop: '${column.javaField}',
+           key: '${column.javaField}',
            type: 'date',
-           config: { clearable: true },
+           props: { clearable: true, valueFormat: 'YYYY-MM-DD' },
         }#if($foreach.count != $columns.size()),#end
     #elseif($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
         {
            label: '${comment}',
            #if($betweenColumns.size() == 1)
-           prop: 'daterange',
+           key: 'daterange',
            #else
-           prop: 'daterange${AttrName}',
+           key: 'daterange${AttrName}',
            #end
            type: 'daterange',
-           config: {type: 'daterange',startPlaceholder: '开始时间',endPlaceholder: '结束时间'}
+           props: { type: 'daterange', startPlaceholder: '开始时间', endPlaceholder: '结束时间', valueFormat: 'YYYY-MM-DD' }
          }#if($foreach.count != $columns.size()),#end
     #end
     #end
@@ -384,15 +354,36 @@
  ])
 
   // 响应式表单数据
-  const formFilters = reactive({ ...initialSearchState })
+  const searchForm = ref<${BusinessName}SearchParams>({
+   ## 先统计符合条件的字段数量
+      #set($betweenColumns = [])
+      #foreach ($column in $columns)
+          #if($column.query && $column.htmlType == "datetime" && $column.queryType == "BETWEEN")
+              #set($void = $betweenColumns.add($column))
+          #end
+      #end
+      ## 根据数量来生成
+      #if($betweenColumns.size() == 1)
+      daterange: [],
+      #else
+      #foreach ($column in $betweenColumns)
+      #set($AttrName = $column.javaField.substring(0,1).toUpperCase() + $column.javaField.substring(1))
+      daterange${AttrName}: [],
+      #end
+      #end
+      #foreach ($column in $columns)
+      #if($column.query)
+      #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
+      #else
+      $column.javaField: undefined#if($foreach.count != $columns.size()),#end
+      #end
+      #end
+      #end
+   })
 
-  // 重置搜索
-  const handleResetSearch = () => {
-    Object.assign(formFilters, { ...initialSearchState })
-    resetSearch()
-  }
-
-  // 搜索处理
+  /**
+     * 搜索处理
+     */
   const handleSearch = () => {
     #set($AttrNames='')
     #foreach ($column in $columns)
@@ -406,38 +397,38 @@
     #end
     #end
     #if($AttrNames == '')
-    Object.assign(searchState, { ...formFilters })
+    Object.assign(searchParams, { ...searchForm.value })
     #elseif($AttrNames.split(',').size() == 1)
-    const queryParams = addDateRange(formFilters)
-    Object.assign(searchState, { ...queryParams })
+    const queryParams = addDateRange(searchForm.value)
+    Object.assign(searchParams, { ...queryParams })
     #else
-    const queryParams = addDateRange(formFilters, [${AttrNames}])
-    Object.assign(searchState, { ...queryParams })
+    const queryParams = addDateRange(searchForm.value, [${AttrNames}])
+    Object.assign(searchParams, { ...queryParams })
     #end
-    searchData()
+    getData()
   }
 
   // 列表数据构建
   const {
     columns,
     columnChecks,
-    tableData,
-    isLoading,
-    paginationState,
-    searchData,
-    searchState,
-    resetSearch,
-    onPageSizeChange,
-    onCurrentPageChange,
-    refreshAll
-  } = useTable<${BusinessName}>({
+    data,
+    loading,
+    pagination,
+    getData,
+    searchParams,
+    resetSearchParams,
+    handleSizeChange,
+    handleCurrentChange,
+    refreshData
+  } = useTable({
     // 核心配置
     core: {
       apiFn: list${BusinessName},
       apiParams: {
         pageNum: 1,
         pageSize: 10,
-        ...initialSearchState
+        ...searchForm.value
       },
       columnsFactory: () => [
         { type: 'selection' }, // 勾选列
@@ -455,7 +446,7 @@
         #elseif($column.list && "" != $column.dictType && ${dicts} != '')
         { label: '${comment}', prop: '${javaField}',align: 'center',useSlot: true },
         #elseif($column.list && "" != $javaField)
-        #if(${foreach.index} == 1)
+        #if(${foreach.index} == 0)
         { label: '${comment}', prop: '${javaField}' },
         #else
         { label: '${comment}', prop: '${javaField}',align: 'center' },
@@ -469,7 +460,7 @@
           align: 'center',
           fixed: 'right', // 固定列
           formatter: (row) =>
-            h('div', { style: 'display: flex; align-items: center;justify-content: center;' }, [
+            h('div', { class: 'flex items-center justify-center' }, [
               hasAuth('${moduleName}:${businessName}:edit') &&
                 h(ArtButtonTable, {
                   type: 'edit',
@@ -478,7 +469,7 @@
               hasAuth('${moduleName}:${businessName}:remove') &&
                 h(ArtButtonTable, {
                   type: 'delete',
-                  onClick: () => deleteRole(row)
+                  onClick: () => handleRemove(row)
                 })
             ])
         }
@@ -534,7 +525,7 @@
     try {
       isEdit.value = type === 'edit'
       resetForm() // 重置表单
-      const ${businessName}Id = row?.${businessName}Id ? row.${businessName}Id : (ids.value as unknown as number)
+      const ${businessName}Id = row?.${businessName}Id ? row.${businessName}Id : ids.value[0]
       if (isEdit.value && ${businessName}Id) {
         const { data } = await get${BusinessName}(${businessName}Id)
         Object.assign(form, {
@@ -542,6 +533,8 @@
           #if($column.javaField == 'createBy' || $column.javaField == 'createTime' || $column.javaField == 'updateBy' || $column.javaField == 'updateTime')
           #elseif($column.htmlType == "checkbox")
             $column.javaField: data.$column.javaField ?? []#if($foreach.count != $columns.size()),#end
+          #elseif($column.javaType == "Boolean" || $column.javaType == "boolean")
+            $column.javaField: true#if($foreach.count != $columns.size()),#end
           #else
             $column.javaField: data.$column.javaField ?? undefined#if($foreach.count != $columns.size()),#end
           #end
@@ -567,7 +560,7 @@
           }
           ElMessage.success(isEdit.value ? '编辑成功' : '新增成功')
           dialogVisible.value = false
-          searchData()
+          getData()
         } catch {
           //
         }
@@ -584,7 +577,17 @@
     #elseif($column.htmlType == "checkbox")
         $column.javaField: []#if($foreach.count != $columns.size()),#end
     #else
-        $column.javaField: undefined#if($foreach.count != $columns.size()),#end
+      #if($column.javaType == "String")
+      $column.javaField: undefined#if($foreach.count != $columns.size()),#end
+      #elseif($column.javaType == "Integer" || $column.javaType == "int" || $column.javaType == "Long" || $column.javaType == "long" || $column.javaType == "Short" || $column.javaType == "short" || $column.javaType == "Byte" || $column.javaType == "byte" || $column.javaType == "Double" || $column.javaType == "double" || $column.javaType == "Float" || $column.javaType == "float" || $column.javaType == "BigDecimal")
+      $column.javaField: undefined#if($foreach.count != $columns.size()),#end
+      #elseif($column.javaType == "Boolean" || $column.javaType == "boolean")
+      $column.javaField: true#if($foreach.count != $columns.size()),#end
+      #elseif($column.javaType == "Date" || $column.javaType == "LocalDateTime" || $column.javaType == "LocalDate" || $column.javaType == "Timestamp")
+      $column.javaField: undefined#if($foreach.count != $columns.size()),#end
+      #else
+      $column.javaField: undefined#if($foreach.count != $columns.size()),#end
+      #end
     #end
     #end
     })
@@ -594,7 +597,7 @@
    * 删除${functionName}
    * @param row 行数据
    */
-  const deleteRole = async (row?: ${BusinessName} | null) => {
+  const handleRemove = async (row?: ${BusinessName} | null) => {
     const ${businessName}Ids: string = row?.${businessName}Id ? row.${businessName}Id.toString() : ids.value.toString()
     try {
       await ElMessageBox.confirm('确定要删除所选项吗？', '提示', { type: 'warning' })
@@ -617,7 +620,7 @@
    * 导出列表excel
    */
   const handleExport = () => {
-    downloadFile('${moduleName}/${businessName}/export', { ...searchState }, '${functionName}列表_' + new Date().getTime() + '.xlsx')
+    downloadFile('${moduleName}/${businessName}/export', { ...searchParams }, '${functionName}列表_' + new Date().getTime() + '.xlsx')
   }
 </script>
 

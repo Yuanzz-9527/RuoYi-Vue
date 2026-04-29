@@ -2,7 +2,7 @@
   <div class="${businessName}-page art-full-height">
     <!-- 搜索栏 -->
     <ArtSearchBar
-      v-model:filter="formFilters"
+      v-model="searchForm"
       :items="formItems"
       @reset="handleReset"
       @search="handleSearch"
@@ -13,7 +13,7 @@
       <ArtTableHeader
         :showZebra="false"
         v-model:columns="columnChecks"
-        @refresh="handleRefresh"
+        @refresh="handleSearch"
       >
         <template #left>
           <ElButton v-auth="'${moduleName}:${businessName}:add'" plain type="primary" @click="handleAdd()" v-ripple>
@@ -96,7 +96,7 @@
                       :data="${businessName}Options"
                       check-strictly
                       node-key="${treeCode}"
-                      :props="{ value: '${treeCode}', label: '${treeName}', children: 'children' }"
+                      :props="{ label: '${treeName}', children: 'children' }"
                       placeholder="请选择${comment}"
                       :render-after-expand="false"
                     />
@@ -245,16 +245,17 @@
 </template>
 
 <script setup lang="ts">
-import { type ${BusinessName}, ${BusinessName}Service } from '@/api/${moduleName}/${businessName}'
+import { type ${BusinessName}, MenuSearchParams, ${BusinessName}Service } from '@/api/${moduleName}/${businessName}'
 import type { FormInstance, FormRules, TreeData } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useTableColumns } from '@/composables/useTableColumns'
-import { useAuth } from '@/composables/useAuth'
-import { SearchFormItem } from '@/types'
+#if(${dicts} != '')
+import { useAuth, useDict, useTableColumns } from '@/hooks'
+#else
+import { useAuth, useTableColumns } from '@/hooks'
+#end
 import { handleTree, parseTime, addDateRange } from '@/utils'
 import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
 #if(${dicts} != '')
-import useDict from '@/composables/useDict'
 import ArtDict from '@/components/core/forms/art-dict/index.vue'
 #end
 
@@ -269,42 +270,40 @@ const { list${BusinessName}, add${BusinessName}, update${BusinessName}, get${Bus
 
 const loading = ref(false)
 const initialSearchState = {
-  ## 先统计符合条件的字段数量
-  #set($betweenColumns = [])
-  #foreach ($column in $columns)
-      #if($column.query && $column.htmlType == "datetime" && $column.queryType == "BETWEEN")
-          #set($void = $betweenColumns.add($column))
-      #end
-  #end
-  ## 根据数量来生成
-  #if($betweenColumns.size() == 1)
-  daterange: [],
-  #else
-  #foreach ($column in $betweenColumns)
-  #set($AttrName = $column.javaField.substring(0,1).toUpperCase() + $column.javaField.substring(1))
-  daterange${AttrName}: [],
-  #end
-  #end
-  #foreach ($column in $columns)
-  #if($column.query)
-  #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
-  #else
-  $column.javaField: undefined#if($foreach.count != $columns.size()),#end
-  #end
-  #end
-  #end
+   ## 先统计符合条件的字段数量
+    #set($betweenColumns = [])
+    #foreach ($column in $columns)
+        #if($column.query && $column.htmlType == "datetime" && $column.queryType == "BETWEEN")
+            #set($void = $betweenColumns.add($column))
+        #end
+    #end
+    ## 根据数量来生成
+    #if($betweenColumns.size() == 1)
+    daterange: undefined,
+    #else
+    #foreach ($column in $betweenColumns)
+    #set($AttrName = $column.javaField.substring(0,1).toUpperCase() + $column.javaField.substring(1))
+    daterange${AttrName}: undefined,
+    #end
+    #end
+    #foreach ($column in $columns)
+    #if($column.query)
+    #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
+    #else
+    $column.javaField: undefined#if($foreach.count != $columns.size()),#end
+    #end
+    #end
+    #end
 }
-const formFilters = reactive({ ...initialSearchState })
+const searchForm = ref<${BusinessName}SearchParams>({ ...initialSearchState })
 
 const handleReset = () => {
-  Object.assign(formFilters, { ...initialSearchState })
+  Object.assign(searchForm.value, { ...initialSearchState })
   handleSearch()
 }
 
-const handleRefresh = () => handleSearch()
-
 // 搜索项配置
-const formItems = computed<SearchFormItem[]>(() => [
+const formItems = computed(() => [
 #foreach($column in $columns)
 #if($column.query)
 #set($dictType=$column.dictType)
@@ -318,43 +317,41 @@ const formItems = computed<SearchFormItem[]>(() => [
 #if($column.htmlType == "input")
      {
        label: '${comment}',
-       prop: '${column.javaField}',
+       key: '${column.javaField}',
        type: 'input',
-       config: { clearable: true }
+       props: { clearable: true, placeholder: '请输入${comment}' }
      }#if($foreach.count != $columns.size()),#end
 #elseif(($column.htmlType == "select" || $column.htmlType == "radio") && "" != $dictType)
      {
        label: '${comment}',
-       prop: '${column.javaField}',
+       key: '${column.javaField}',
        type: 'select',
-       config: { clearable: true },
-       options: dict.${dictType}
+       props: { clearable: true, placeholder: '请选择${comment}', options: dict.${dictType} },
      }#if($foreach.count != $columns.size()),#end
 #elseif(($column.htmlType == "select" || $column.htmlType == "radio") && $dictType)
     {
        label: '${comment}',
-       prop: '${column.javaField}',
+       key: '${column.javaField}',
        type: 'select',
-       config: { clearable: true },
-       options: [label:'请选择字典生产',value:'']
+       props: { clearable: true, placeholder: '请选择${comment}', options: [label:'请选择字典生产',value:''] }
     }#if($foreach.count != $columns.size()),#end
 #elseif($column.htmlType == "datetime" && $column.queryType != "BETWEEN")
     {
        label: '${comment}',
-       prop: '${column.javaField}',
+       key: '${column.javaField}',
        type: 'date',
-       config: { clearable: true },
+       props: { clearable: true, placeholder: '请选择${comment}' },
     }#if($foreach.count != $columns.size()),#end
 #elseif($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
     {
        label: '${comment}',
        #if($betweenColumns.size() == 1)
-       prop: 'daterange',
+       key: 'daterange',
        #else
-       prop: 'daterange${AttrName}',
+       key: 'daterange${AttrName}',
        #end
        type: 'daterange',
-       config: {type: 'daterange',startPlaceholder: '开始时间',endPlaceholder: '结束时间'}
+       props: { type: 'daterange', valueFormat: 'YYYY-MM-DD', startPlaceholder: '开始时间', endPlaceholder: '结束时间' }
      }#if($foreach.count != $columns.size()),#end
 #end
 #end
@@ -387,10 +384,10 @@ const { columnChecks, columns } = useTableColumns(() => [
     label: '操作',
     width: 180,
     formatter: (row: ${BusinessName}) => {
-      return h('div', [
+      return h('div',{ class: 'flex items-center justify-center' }, [
         hasAuth('${permissionPrefix}:add') && h(ArtButtonTable, { type: 'add', onClick: () => handleAdd(row) }),
         hasAuth('${permissionPrefix}:edit') && h(ArtButtonTable, { type: 'edit', onClick: () => handleUpdate(row) }),
-        hasAuth('${permissionPrefix}:delete') && h(ArtButtonTable, { type: 'delete', onClick: () => deleteRow(row) })
+        hasAuth('${permissionPrefix}:delete') && h(ArtButtonTable, { type: 'delete', class: 'last:mr-0', onClick: () => deleteRow(row) })
       ])
     }
   }
@@ -415,13 +412,13 @@ const handleSearch = async () => {
     #end
     #end
     #if($AttrNames == '')
-    const { data } = await list${BusinessName}(formFilters)
+    const { data } = await list${BusinessName}(searchForm.value)
     #elseif($AttrNames.split(',').size() == 1)
-    const queryParams = addDateRange(formFilters)
-    const { data } = await list${BusinessName}(queryParams as any)
+    const queryParams = addDateRange(searchForm.value)
+    const { data } = await list${BusinessName}(queryParams)
     #else
-    const queryParams = addDateRange(formFilters, [${AttrNames}])
-    const { data } = await list${BusinessName}(queryParams as any)
+    const queryParams = addDateRange(searchForm.value, [${AttrNames}])
+    const { data } = await list${BusinessName}(queryParams)
     #end
     tableData.value = handleTree(data, { id: '${pkColumn.javaField}' })
   } finally {
@@ -526,7 +523,7 @@ const deleteRow = async (row: ${BusinessName}) => {
 const getTreeSelect = async () => {
     try {
       ${businessName}Options.value = []
-      const { data } = await list${BusinessName}({})
+      const { data } = await list${BusinessName}()
       const ${businessName}: Partial<${BusinessName}> = { ${treeCode}: 0, ${treeName}: '主类目', children: [] }
       ${businessName}.children = handleTree(data, { id: '${treeCode}' })
       ${businessName}Options.value.push(${businessName})

@@ -1,11 +1,20 @@
 import request from '@/utils/http'
+#foreach ($column in $columns)
+  #if($column.javaField == 'status')
+import {Status} from "@/types";
+  #end
+#end
 
-export interface ${BusinessName} {
+export interface ${BusinessName} extends Api.Common.RouYiRow {
   #foreach ($column in $columns)
   #if($column.javaField == 'createBy' || $column.javaField == 'createTime' || $column.javaField == 'updateBy' || $column.javaField == 'updateTime' )
   #else
   #if($column.javaType == "String")
+    #if($column.javaField == 'status')
+  $column.javaField: Status
+    #else
   $column.javaField: string
+    #end
   #elseif($column.javaType == "Integer" || $column.javaType == "int" || $column.javaType == "Long" || $column.javaType == "long" || $column.javaType == "Short" || $column.javaType == "short" || $column.javaType == "Byte" || $column.javaType == "byte" || $column.javaType == "Double" || $column.javaType == "double" || $column.javaType == "Float" || $column.javaType == "float" || $column.javaType == "BigDecimal")
   $column.javaField: number
   #elseif($column.javaType == "Boolean" || $column.javaType == "boolean")
@@ -18,43 +27,70 @@ export interface ${BusinessName} {
   #end
   #end
 }
+## 收集所有 BETWEEN 类型的日期字段
+#set($betweenColumns = [])
+#foreach ($column in $columns)
+    #if($column.query && $column.htmlType == "datetime" && $column.queryType == "BETWEEN")
+        #set($void = $betweenColumns.add($column))
+    #end
+#end
+## 构建 Pick 类型字段列表
+#set($pickFields = [])
+#foreach ($column in $columns)
+    #if($column.query && !($column.htmlType == "datetime" && $column.queryType == "BETWEEN"))
+        #set($void = $pickFields.add($column.javaField))
+    #end
+#end
+
+export type ${BusinessName}SearchParams = Partial<
+    Pick<${BusinessName}, #foreach($field in $pickFields)'$field'#if($foreach.hasNext) | #end#end> &
+    Api.Common.PaginatingSearchParams>#if($betweenColumns.size() > 0) & {
+  #if($betweenColumns.size() == 1)
+  daterange?: [string, string]
+  #else
+  #foreach ($column in $betweenColumns)
+  #set($AttrName = $column.javaField.substring(0,1).toUpperCase() + $column.javaField.substring(1))
+  daterange${AttrName}?: [string, string]
+  #end
+  #end
+}#end
 
 export class ${BusinessName}Service {
   // 查询${functionName}列表
-  static list${BusinessName}(params: Api.Common.PaginatingSearchParams & Record<string, unknown>) {
-    return request.get<Api.Common.ListResponse<${BusinessName}[]>>({
+  static list${BusinessName}(params: ${BusinessName}SearchParams): Promise<Http.ListResponse<${BusinessName}>> {
+    return request.get<Http.ListResponse<${BusinessName}>>({
       url: '/${moduleName}/${businessName}/list',
       params
     })
   }
 
   // 查询${functionName}详细
-  static get${BusinessName}(${pkColumn.javaField}: number) {
-    return request.get<Api.Common.DataResponse<${BusinessName}>>({
+  static get${BusinessName}(${pkColumn.javaField}: number): Promise<Http.BaseResponse<${BusinessName}>> {
+    return request.get<Http.BaseResponse<${BusinessName}>>({
       url: '/${moduleName}/${businessName}/' + ${pkColumn.javaField}
     })
   }
 
   // 新增${functionName}
-  static add${BusinessName}(params: ${BusinessName}) {
-    return request.post({
+  static add${BusinessName}(params: Omit<${BusinessName}, '${businessName}Id'>): Promise<Http.BaseResponse<void>> {
+    return request.post<Http.BaseResponse<void>>({
       url: '/${moduleName}/${businessName}',
       params
     })
   }
 
   // 修改${functionName}
-  static update${BusinessName}(params: ${BusinessName}) {
-    return request.put({
+  static update${BusinessName}(params: ${BusinessName}): Promise<Http.BaseResponse<void>> {
+    return request.put<Http.BaseResponse<void>>({
       url: '/${moduleName}/${businessName}',
       params
     })
   }
 
   // 删除${functionName}
-  static del${BusinessName}(${pkColumn.javaField}: number | string) {
-    return request.del({
-      url: '/${moduleName}/${businessName}/' + ${pkColumn.javaField}
+  static del${BusinessName}(${pkColumn.javaField}s: string): Promise<Http.BaseResponse<void>> {
+    return request.del<Http.BaseResponse<void>>({
+      url: '/${moduleName}/${businessName}/' + ${pkColumn.javaField}s
     })
   }
 }
